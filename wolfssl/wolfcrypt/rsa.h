@@ -271,8 +271,19 @@ struct RsaKey {
     typedef struct RsaKey RsaKey;
     #define WC_RSAKEY_TYPE_DEFINED
 #endif
-
 #endif /* HAVE_FIPS */
+
+struct RsaPadding {
+    byte pad_value;
+    int pad_type;
+    enum wc_HashType hash;
+    int mgf;
+    byte* label;
+    word32 labelSz;
+    int saltLen;
+    int unpadded;
+};
+typedef struct RsaPadding RsaPadding;
 
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
 WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
@@ -294,6 +305,9 @@ WOLFSSL_API int wc_RsaGetKeyId(RsaKey* key, word32* keyId);
 
 WOLFSSL_API int  wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                            word32* outLen, int type, RsaKey* key, WC_RNG* rng);
+
+WOLFSSL_API int  wc_RsaFunctionPad(const byte* in, word32 inLen, byte* out,
+                                   word32* outLen, int type, RsaKey* key, WC_RNG* rng, RsaPadding* padding);
 
 WOLFSSL_API int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
                                  word32 outLen, RsaKey* key, WC_RNG* rng);
@@ -465,4 +479,3 @@ WOLFSSL_API int wc_RsaPrivateKeyDecodeRaw(const byte* n, word32 nSz,
 
 #endif /* NO_RSA */
 #endif /* WOLF_CRYPT_RSA_H */
-
