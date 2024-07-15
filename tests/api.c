@@ -76666,7 +76666,8 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
     #endif
 
     #ifndef NO_RSA
-        if (info->pk.type == WC_PK_TYPE_RSA) {
+        if (info->pk.type == WC_PK_TYPE_RSA ||
+                info->pk.type == WC_PK_TYPE_RSA_PSS) {
             switch (info->pk.rsa.type) {
                 case RSA_PUBLIC_ENCRYPT:
                 case RSA_PUBLIC_DECRYPT:
@@ -76695,10 +76696,11 @@ static int test_CryptoCb_Func(int thisDevId, wc_CryptoInfo* info, void* ctx)
                         ret = wc_RsaPrivateKeyDecode(pDer->buffer, &keyIdx,
                             &key, pDer->length);
                         if (ret == 0) {
-                            ret = wc_RsaFunction(
+                            ret = wc_RsaFunctionPad(
                                 info->pk.rsa.in, info->pk.rsa.inLen,
                                 info->pk.rsa.out, info->pk.rsa.outLen,
-                                info->pk.rsa.type, &key, info->pk.rsa.rng);
+                                info->pk.rsa.type, &key, info->pk.rsa.rng,
+                                info->pk.rsa.padding);
                         }
                         else {
                             /* if decode fails, then fall-back to software based crypto */
