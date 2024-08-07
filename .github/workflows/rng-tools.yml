@@ -1,4 +1,4 @@
-name: cyrus-sasl Tests
+name: rng-tools Tests
 
 # START OF COMMON SECTION
 on:
@@ -26,7 +26,6 @@ jobs:
           path: wolfssl
           configure: --enable-all
           install: true
-          # Don't run tests as this config is tested in many other places
           check: false
 
       - name: tar build-dir
@@ -35,16 +34,16 @@ jobs:
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
-          name: wolf-install-sasl
+          name: wolf-install-rng-tools
           path: build-dir.tgz
           retention-days: 5
 
-  sasl_check:
+  rng-tools_check:
     strategy:
       fail-fast: false
       matrix:
         # List of releases to test
-        ref: [ 2.1.28 ]
+        ref: [ 6.16 ]
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
@@ -56,48 +55,60 @@ jobs:
           # Don't prompt for anything
           export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
-          sudo apt-get install krb5-kdc krb5-otp libkrb5-dev \
-            libsocket-wrapper libnss-wrapper krb5-admin-server libdb5.3-dev
+          sudo apt-get install -y libcurl4-openssl-dev libjansson-dev libp11-dev librtlsdr-dev libcap-dev
 
       - name: Download lib
         uses: actions/download-artifact@v4
         with:
-          name: wolf-install-sasl
+          name: wolf-install-rng-tools
 
       - name: untar build-dir
         run: tar -xf build-dir.tgz
-
+    
       - name: Checkout OSP
         uses: actions/checkout@v4
         with:
           repository: wolfssl/osp
           path: osp
 
-      - name: Checkout sasl
+      - name: Checkout jitterentropy-library
         uses: actions/checkout@v4
         with:
-          repository: cyrusimap/cyrus-sasl
-          ref: cyrus-sasl-${{ matrix.ref }}
-          path: sasl
+          repository: smuellerDD/jitterentropy-library
+          path: jitterentropy-library
+          ref: v3.5.0
 
-      - name: Build cyrus-sasl
-        working-directory: sasl
-        run: |
-          patch -p1 < $GITHUB_WORKSPACE/osp/cyrus-sasl/${{ matrix.ref }}/${{ matrix.ref }}.patch
-          autoreconf -ivf
-          ./configure --with-openssl=no --with-wolfssl=$GITHUB_WORKSPACE/build-dir --with-dblib=berkeley --disable-shared
-          # Need to run 'make' twice with '--disable-shared' for some reason
-          make -j || make -j
+      - name: Build jitterentropy-library
+        working-directory: jitterentropy-library
+        run: make -j
 
-      - name: Run testsuite
-        working-directory: sasl
+      - name: Build rng-tools
+        uses: wolfSSL/actions-build-autotools-project@v1
+        with:
+          repository: nhorman/rng-tools
+          ref: v${{ matrix.ref }}
+          path: rng-tools
+          patch-file: $GITHUB_WORKSPACE/osp/rng-tools/${{ matrix.ref }}.patch
+          configure: --without-pkcs11 --enable-jitterentropy=$GITHUB_WORKSPACE/jitterentropy-library --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+          check: false
+
+      - name: Testing rng-tools
+        id: testing
+        working-directory: rng-tools
         run: |
-          make -j -C utils testsuite saslpasswd2
           # Retry up to five times
           for i in {1..5}; do
-             TEST_RES=0
-             $GITHUB_WORKSPACE/osp/cyrus-sasl/${{ matrix.ref }}/run-tests.sh || TEST_RES=$?
-             if [ "$TEST_RES" -eq "0" ]; then
-                break
-             fi
+            TEST_RES=0
+            LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GITHUB_WORKSPACE/build-dir/lib make check || TEST_RES=$?
+            if [ "$TEST_RES" -eq "0" ]; then
+               break
+            fi
           done
+          if [ "$TEST_RES" -ne "0" ]; then
+            exit $TEST_RES
+          fi
+
+      - name: Print logs
+        if: ${{ failure() && steps.testing.outcome == 'failure' }}
+        working-directory: rng-tools/tests
+        run: cat test-suite.log

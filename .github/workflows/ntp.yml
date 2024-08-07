@@ -1,4 +1,4 @@
-name: libssh2 Tests
+name: ntp Tests
 
 # START OF COMMON SECTION
 on:
@@ -25,8 +25,8 @@ jobs:
         with:
           path: wolfssl
           configure: --enable-all
-          check: false # config is already tested in many other PRB's
           install: true
+          check: false
 
       - name: tar build-dir
         run: tar -zcf build-dir.tgz build-dir
@@ -34,39 +34,59 @@ jobs:
       - name: Upload built lib
         uses: actions/upload-artifact@v4
         with:
-          name: wolf-install-libssh2
+          name: wolf-install-ntp
           path: build-dir.tgz
           retention-days: 5
 
-  libssh2_check:
+  ntp_check:
     strategy:
       fail-fast: false
       matrix:
         # List of releases to test
-        ref: [ 1.11.0 ]
+        ref: [ 4.2.8p15 ]
     name: ${{ matrix.ref }}
     runs-on: ubuntu-latest
     # This should be a safe limit for the tests to run.
-    timeout-minutes: 8
+    timeout-minutes: 10
     needs: build_wolfssl
     steps:
       - name: Download lib
         uses: actions/download-artifact@v4
         with:
-          name: wolf-install-libssh2
+          name: wolf-install-ntp
 
       - name: untar build-dir
         run: tar -xf build-dir.tgz
 
-      - name: Build and test libssh2
-        uses: wolfSSL/actions-build-autotools-project@v1
+      - name: Checkout OSP
+        uses: actions/checkout@v4
         with:
-          repository: libssh2/libssh2
-          ref: libssh2-${{ matrix.ref }}
-          path: libssh2
-          configure: --with-crypto=wolfssl --with-libwolfssl-prefix=$GITHUB_WORKSPACE/build-dir
-          check: true
+          repository: wolfssl/osp
+          path: osp
 
-      - name: Confirm libssh2 built with wolfSSL
-        working-directory: ./libssh2
-        run: ldd src/.libs/libssh2.so | grep wolfssl
+      # Avoid DoS'ing ntp site so cache the tar.gz
+      - name: Check if we have ntp
+        uses: actions/cache@v4
+        id: cache
+        with:
+          path: ntp-${{ matrix.ref }}.tar.gz
+          key: ntp-${{ matrix.ref }}.tar.gz
+
+      - name: Download ntp
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          wget https://downloads.nwtime.org/ntp/4.2.8/ntp-${{ matrix.ref }}.tar.gz
+
+      - name: Extract ntp
+        run: |
+          tar -xf ntp-${{ matrix.ref }}.tar.gz
+
+      - name: Build and test ntp
+        working-directory: ntp-${{ matrix.ref }}
+        run: |
+          patch -p1 < $GITHUB_WORKSPACE/osp/ntp/${{ matrix.ref }}/ntp-${{ matrix.ref }}.patch
+          ./bootstrap
+          ./configure --with-wolfssl=$GITHUB_WORKSPACE/build-dir
+          make -j
+          make -j check
+ 

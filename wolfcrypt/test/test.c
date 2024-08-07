@@ -711,9 +711,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t mp_test(void);
 #if defined(WOLFSSL_PUBLIC_MP) && defined(WOLFSSL_KEY_GEN)
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prime_test(void);
 #endif
-#if defined(ASN_BER_TO_DER) && \
-    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
-     defined(OPENSSL_EXTRA_X509_SMALL))
+#ifdef ASN_BER_TO_DER
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t berder_test(void);
 #endif
 WOLFSSL_TEST_SUBROUTINE wc_test_ret_t logging_test(void);
@@ -7789,10 +7787,10 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t chacha_test(void)
             return WC_TEST_RET_ENC_EC(ret);
 
         if (XMEMCMP(plain_big, input_big, CHACHA_BIG_TEST_SIZE))
-            return WC_TEST_RET_ENC_NC;
+            return WC_TEST_RET_ENC_I(i);
 
         if (XMEMCMP(cipher_big, cipher_big_result, CHACHA_BIG_TEST_SIZE))
-            return WC_TEST_RET_ENC_NC;
+            return WC_TEST_RET_ENC_I(i);
     }
 
 #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_NO_MALLOC)
@@ -18078,7 +18076,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t memory_test(void)
 #endif
     static const char* certBadOid =
             CERT_ROOT "test" CERT_PATH_SEP "cert-bad-oid.der";
-#ifndef WOLFSSL_NO_ASN_STRICT
+#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_NO_ASN_STRICT)
     static const char* certBadUtf8 =
             CERT_ROOT "test" CERT_PATH_SEP "cert-bad-utf8.der";
 #endif
@@ -18383,7 +18381,7 @@ static wc_test_ret_t cert_bad_asn1_test(void)
         /* Subject name OID: 55 04 f4. Last byte with top bit set invalid. */
         ret = cert_load_bad(certBadOid, tmp, ASN_PARSE_E);
     }
-#ifndef WOLFSSL_NO_ASN_STRICT
+#if defined(WOLFSSL_ASN_TEMPLATE) && !defined(WOLFSSL_NO_ASN_STRICT)
     if (ret == 0) {
         /* Issuer name UTF8STRING: df 52 4e 44. Top bit of second byte not set.
          */
@@ -49806,11 +49804,7 @@ static wc_test_ret_t pkcs7signed_run_vectors(
         #endif
 
             for (j = 0, k = 2; j < (int)sizeof(digest); j++, k += 2) {
-                #if defined(WOLF_C89)
-                    XSPRINTF((char*)&transId[k], "%02x", digest[j]);
-                #else
-                    (void)XSNPRINTF((char*)&transId[k], 3, "%02x", digest[j]);
-                #endif
+                (void)XSNPRINTF((char*)&transId[k], 3, "%02x", digest[j]);
             }
         }
 
@@ -53961,9 +53955,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t prime_test(void)
 #endif /* WOLFSSL_PUBLIC_MP */
 
 
-#if defined(ASN_BER_TO_DER) && \
-    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
-     defined(OPENSSL_EXTRA_X509_SMALL))
+#ifdef ASN_BER_TO_DER
 /* wc_BerToDer is only public facing in the case of test cert or opensslextra */
 typedef struct berDerTestData {
     const byte *in;
@@ -54079,7 +54071,7 @@ WOLFSSL_TEST_SUBROUTINE wc_test_ret_t berder_test(void)
 
     return 0;
 }
-#endif
+#endif /* ASN_BER_TO_DER */
 
 #ifdef DEBUG_WOLFSSL
 static THREAD_LS_T int log_cnt = 0;

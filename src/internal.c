@@ -344,7 +344,7 @@ void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask)
     {
         wolfSSL_CTX_keylog_cb_func logCb = NULL;
         int msSz;
-        int hasVal;
+        int invalidCount;
         int i;
         const char* label = SSC_CR;
         int labelSz = sizeof(SSC_CR);
@@ -355,32 +355,34 @@ void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask)
         int ret;
         (void)ctx;
 
-        if (ssl == NULL || secret == NULL || *secretSz == 0)
+        if (ssl == NULL || secret == NULL || secretSz == NULL || *secretSz == 0)
             return BAD_FUNC_ARG;
         if (ssl->arrays == NULL)
             return BAD_FUNC_ARG;
 
-        /* get the user-callback func from CTX*/
+        /* get the user-callback func from CTX */
         logCb = ssl->ctx->keyLogCb;
-        if (logCb == NULL)
-            return 0;
+        if (logCb == NULL) {
+            return 0; /* no logging callback */
+        }
 
-        /* need to make sure the given master-secret has a meaningful value */
+        /* make sure the given master-secret has a meaningful value */
         msSz   = *secretSz;
-        hasVal = 0;
+        invalidCount = 0;
         for (i = 0; i < msSz; i++) {
-            if (*((byte*)secret) != 0) {
-                hasVal = 1;
-                break;
+            if (((byte*)secret)[i] == 0) {
+                invalidCount++;
             }
         }
-        if (hasVal == 0)
-            return 0; /* master-secret looks invalid */
+        if (invalidCount == *secretSz) {
+            WOLFSSL_MSG("master-secret is not valid");
+            return 0; /* ignore error */
+        }
 
         /* build up a hex-decoded keylog string
-           "CLIENT_RANDOM <hex-encoded client random> <hex-encoded master-secret>"
-           note that each keylog string does not have CR/LF.
-        */
+         * "CLIENT_RANDOM <hex-encoded client rand> <hex-encoded master-secret>"
+         * note that each keylog string does not have CR/LF.
+         */
         buffSz  = labelSz + (RAN_LEN * 2) + 1 + ((*secretSz) * 2) + 1;
         log     = XMALLOC(buffSz, ssl->heap, DYNAMIC_TYPE_SECRET);
         if (log == NULL)
@@ -410,8 +412,9 @@ void wolfssl_priv_der_unblind(DerBuffer* key, DerBuffer* mask)
                     ret = 0;
                 }
             }
-            else
-                ret = MEMORY_E;
+            else {
+                ret = BUFFER_E;
+            }
         }
         /* Zero out Base16 encoded secret and other data. */
         ForceZero(log, buffSz);
@@ -12540,13 +12543,13 @@ int CheckForAltNames(DecodedCert* dCert, const char* domain, word32 domainLen,
     while (altName) {
         WOLFSSL_MSG("\tindividual AltName check");
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
+#ifdef WOLFSSL_IP_ALT_NAME
         if (altName->type == ASN_IP_TYPE) {
             buf = altName->ipString;
             len = (word32)XSTRLEN(buf);
         }
         else
-#endif /* OPENSSL_ALL || WOLFSSL_IP_ALT_NAME */
+#endif /* WOLFSSL_IP_ALT_NAME */
         {
             buf = altName->name;
             len = (word32)altName->len;
@@ -12817,6 +12820,7 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)
 int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 {
     int ret = 0;
+    int minSz;
 
     if (x509 == NULL || dCert == NULL ||
         dCert->subjectCNLen < 0)
@@ -12866,49 +12870,45 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #endif /* WOLFSSL_CERT_REQ */
 
 #ifdef WOLFSSL_SEP
-    {
-        int minSz = min(dCert->deviceTypeSz, EXTERNAL_SERIAL_SIZE);
-        if (minSz > 0) {
-            x509->deviceTypeSz = minSz;
-            XMEMCPY(x509->deviceType, dCert->deviceType, minSz);
-        }
-        else
-            x509->deviceTypeSz = 0;
-        minSz = min(dCert->hwTypeSz, EXTERNAL_SERIAL_SIZE);
-        if (minSz > 0) {
-            x509->hwTypeSz = minSz;
-            XMEMCPY(x509->hwType, dCert->hwType, minSz);
-        }
-        else
-            x509->hwTypeSz = 0;
-        minSz = min(dCert->hwSerialNumSz, EXTERNAL_SERIAL_SIZE);
-        if (minSz > 0) {
-            x509->hwSerialNumSz = minSz;
-            XMEMCPY(x509->hwSerialNum, dCert->hwSerialNum, minSz);
-        }
-        else
-            x509->hwSerialNumSz = 0;
+    minSz = min(dCert->deviceTypeSz, EXTERNAL_SERIAL_SIZE);
+    if (minSz > 0) {
+        x509->deviceTypeSz = minSz;
+        XMEMCPY(x509->deviceType, dCert->deviceType, minSz);
     }
+    else
+        x509->deviceTypeSz = 0;
+    minSz = min(dCert->hwTypeSz, EXTERNAL_SERIAL_SIZE);
+    if (minSz > 0) {
+        x509->hwTypeSz = minSz;
+        XMEMCPY(x509->hwType, dCert->hwType, minSz);
+    }
+    else
+        x509->hwTypeSz = 0;
+    minSz = min(dCert->hwSerialNumSz, EXTERNAL_SERIAL_SIZE);
+    if (minSz > 0) {
+        x509->hwSerialNumSz = minSz;
+        XMEMCPY(x509->hwSerialNum, dCert->hwSerialNum, minSz);
+    }
+    else
+        x509->hwSerialNumSz = 0;
 #endif /* WOLFSSL_SEP */
-    {
-        int minSz;
-        if (dCert->beforeDateLen > 0) {
-            minSz = (int)min(dCert->beforeDate[1], MAX_DATE_SZ);
-            x509->notBefore.type = dCert->beforeDate[0];
-            x509->notBefore.length = minSz;
-            XMEMCPY(x509->notBefore.data, &dCert->beforeDate[2], minSz);
-        }
-        else
-            x509->notBefore.length = 0;
-        if (dCert->afterDateLen > 0) {
-            minSz = (int)min(dCert->afterDate[1], MAX_DATE_SZ);
-            x509->notAfter.type = dCert->afterDate[0];
-            x509->notAfter.length = minSz;
-            XMEMCPY(x509->notAfter.data, &dCert->afterDate[2], minSz);
-        }
-        else
-            x509->notAfter.length = 0;
+
+    if (dCert->beforeDateLen > 0) {
+        minSz = (int)min(dCert->beforeDate[1], MAX_DATE_SZ);
+        x509->notBefore.type = dCert->beforeDate[0];
+        x509->notBefore.length = minSz;
+        XMEMCPY(x509->notBefore.data, &dCert->beforeDate[2], minSz);
     }
+    else
+        x509->notBefore.length = 0;
+    if (dCert->afterDateLen > 0) {
+        minSz = (int)min(dCert->afterDate[1], MAX_DATE_SZ);
+        x509->notAfter.type = dCert->afterDate[0];
+        x509->notAfter.length = minSz;
+        XMEMCPY(x509->notAfter.data, &dCert->afterDate[2], minSz);
+    }
+    else
+        x509->notAfter.length = 0;
 
     if (dCert->publicKey != NULL && dCert->pubKeySize != 0) {
         x509->pubKey.buffer = (byte*)XMALLOC(
@@ -13047,7 +13047,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             ret = MEMORY_E;
         }
     }
-    #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    #ifdef WOLFSSL_ASN_CA_ISSUER
     if (dCert->extAuthInfoCaIssuer != NULL && dCert->extAuthInfoCaIssuerSz > 0) {
         x509->authInfoCaIssuer = (byte*)XMALLOC(dCert->extAuthInfoCaIssuerSz, x509->heap,
                 DYNAMIC_TYPE_X509_EXT);
@@ -13133,10 +13133,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     #ifndef IGNORE_NETSCAPE_CERT_TYPE
     x509->nsCertType = dCert->nsCertType;
     #endif
-    #if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
+    #ifdef WOLFSSL_SEP
         x509->certPolicySet = dCert->extCertPolicySet;
         x509->certPolicyCrit = dCert->extCertPolicyCrit;
-    #endif /* WOLFSSL_SEP || WOLFSSL_QT */
+    #endif
     #ifdef WOLFSSL_CERT_EXT
         {
             int i;
@@ -23310,12 +23310,16 @@ int SendFinished(WOLFSSL* ssl)
  * Returns 0 on success
  */
 static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
-                             DecodedCert* cert, byte* certData, word32 length)
+                             DecodedCert* cert, byte* certData, word32 length,
+                             byte *ctxOwnsRequest)
 {
     int ret;
 
     if (request != NULL)
         XMEMSET(request, 0, sizeof(OcspRequest));
+
+    if (ctxOwnsRequest!= NULL)
+        *ctxOwnsRequest = 0;
 
     InitDecodedCert(cert, certData, length, ssl->heap);
     /* TODO: Setup async support here */
@@ -23330,8 +23334,11 @@ static int CreateOcspRequest(WOLFSSL* ssl, OcspRequest* request,
         if (!ssl->buffers.weOwnCert) {
             wolfSSL_Mutex* ocspLock = &SSL_CM(ssl)->ocsp_stapling->ocspLock;
             if (wc_LockMutex(ocspLock) == 0) {
-                if (ssl->ctx->certOcspRequest == NULL)
+                if (ssl->ctx->certOcspRequest == NULL) {
                     ssl->ctx->certOcspRequest = request;
+                    if (ctxOwnsRequest!= NULL)
+                        *ctxOwnsRequest = 1;
+                }
                 wc_UnLockMutex(ocspLock);
             }
         }
@@ -23360,6 +23367,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
     int          ret = 0;
     OcspRequest* request = NULL;
     byte createdRequest  = 0;
+    byte ctxOwnsRequest = 0;
 
     if (ssl == NULL || ocspRequest == NULL || response == NULL)
         return BAD_FUNC_ARG;
@@ -23397,7 +23405,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
         createdRequest = 1;
         if (ret == 0) {
             ret = CreateOcspRequest(ssl, request, cert, der->buffer,
-                                                                   der->length);
+                      der->length, &ctxOwnsRequest);
         }
 
         if (ret != 0) {
@@ -23424,7 +23432,7 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
     }
 
     /* free request up if error case found otherwise return it */
-    if (ret != 0 && createdRequest) {
+    if (ret != 0 && createdRequest && !ctxOwnsRequest) {
         FreeOcspRequest(request);
         XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
     }
@@ -24119,6 +24127,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
         {
             OcspRequest* request = ssl->ctx->certOcspRequest;
             buffer responses[1 + MAX_CHAIN_DEPTH];
+            byte ctxOwnsRequest = 0;
             int i = 0;
 
             XMEMSET(responses, 0, sizeof(responses));
@@ -24177,7 +24186,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                             break;
 
                         ret = CreateOcspRequest(ssl, request, cert, der.buffer,
-                                                der.length);
+                                                der.length, &ctxOwnsRequest);
                         if (ret == 0) {
                             request->ssl = ssl;
                         ret = CheckOcspRequest(SSL_CM(ssl)->ocsp_stapling,
@@ -24192,12 +24201,13 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
 
                             i++;
-                            FreeOcspRequest(request);
+                            if (!ctxOwnsRequest)
+                                FreeOcspRequest(request);
                         }
                     }
                 }
-
-                XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+                if (!ctxOwnsRequest)
+                    XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
             #ifdef WOLFSSL_SMALL_STACK
                 XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
             #endif

@@ -5359,8 +5359,7 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 
     InitDecodedCert(cert, der->buffer, der->length, cm->heap);
 
-#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) && \
-    defined(HAVE_OID_DECODING)
+#ifdef WC_ASN_UNKNOWN_EXT_CB
     if (cm->unknownExtCallback != NULL) {
         wc_SetUnknownExtCallback(cert, cm->unknownExtCallback);
     }
@@ -22731,7 +22730,7 @@ void wolfSSL_ERR_remove_state(unsigned long id)
     }
 }
 
-#endif  /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA */
 
 #ifdef OPENSSL_ALL
 
@@ -23353,7 +23352,7 @@ void wolfSSL_CTX_set_keylog_callback(WOLFSSL_CTX* ctx,
     wolfSSL_CTX_keylog_cb_func cb)
 {
     WOLFSSL_ENTER("wolfSSL_CTX_set_keylog_callback");
-  /* stores the callback into WOLFSSL_CTX */
+    /* stores the callback into WOLFSSL_CTX */
     if (ctx != NULL) {
         ctx->keyLogCb = cb;
     }
@@ -23364,8 +23363,7 @@ wolfSSL_CTX_keylog_cb_func wolfSSL_CTX_get_keylog_callback(
     WOLFSSL_ENTER("wolfSSL_CTX_get_keylog_callback");
     if (ctx != NULL)
         return ctx->keyLogCb;
-    else
-        return NULL;
+    return NULL;
 }
 #endif /* OPENSSL_EXTRA && HAVE_SECRET_CALLBACK */
 
