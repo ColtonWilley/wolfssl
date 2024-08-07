@@ -2650,7 +2650,8 @@ struct WOLFSSL_CERT_MANAGER {
 #ifdef HAVE_DILITHIUM
     short           minDilithiumKeySz;  /* minimum allowed Dilithium key size */
 #endif
-#ifdef WC_ASN_UNKNOWN_EXT_CB
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
     wc_UnknownExtCallback unknownExtCallback;
 #endif
 };
@@ -5175,9 +5176,13 @@ struct WOLFSSL_X509 {
     byte             hwType[EXTERNAL_SERIAL_SIZE];
     int              hwSerialNumSz;
     byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
+#endif /* WOLFSSL_SEP */
+#if (defined(WOLFSSL_SEP) || defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || \
+    defined (OPENSSL_EXTRA)) && \
+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     byte             certPolicySet;
     byte             certPolicyCrit;
-#endif /* WOLFSSL_SEP */
+#endif /* (WOLFSSL_SEP || WOLFSSL_QT) && (OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL) */
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA)
     WOLFSSL_STACK* ext_sk; /* Store X509_EXTENSIONS from wolfSSL_X509_get_ext */
     WOLFSSL_STACK* ext_sk_full; /* Store X509_EXTENSIONS from wolfSSL_X509_get0_extensions */

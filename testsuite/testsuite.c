@@ -300,7 +300,7 @@ static int test_crl_monitor(void)
 
     printf("\nRunning CRL monitor test\n");
 
-    (void)XSNPRINTF(rounds, sizeof(rounds), "%d", CRL_MONITOR_TEST_ROUNDS);
+    sprintf(rounds, "%d", CRL_MONITOR_TEST_ROUNDS);
 
     XMEMSET(&server_args, 0, sizeof(func_args));
     XMEMSET(&client_args, 0, sizeof(func_args));
@@ -320,19 +320,18 @@ static int test_crl_monitor(void)
     InitTcpReady(&ready);
     start_thread(server_test, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    (void)XSNPRINTF(portNum, sizeof(portNum), "%d", server_args.signal->port);
+    sprintf(portNum, "%d", server_args.signal->port);
 
     for (i = 0; i < CRL_MONITOR_TEST_ROUNDS; i++) {
         int expectFail;
         if (i % 2 == 0) {
-
             /* succeed on even rounds */
-            (void)XSNPRINTF(buf, sizeof(buf), "%s/%s", tmpDir, "crl.pem");
+            sprintf(buf, "%s/%s", tmpDir, "crl.pem");
             if (STAGE_FILE("certs/crl/crl.pem", buf) != 0) {
                 fprintf(stderr, "[%d] Failed to copy file to %s\n", i, buf);
                 goto cleanup;
             }
-            (void)XSNPRINTF(buf, sizeof(buf), "%s/%s", tmpDir, "crl.revoked");
+            sprintf(buf, "%s/%s", tmpDir, "crl.revoked");
             /* The monitor can be holding the file handle and this will cause
              * the remove call to fail. Let's give the monitor a some time to
              * finish up. */
@@ -350,12 +349,12 @@ static int test_crl_monitor(void)
         }
         else {
             /* fail on odd rounds */
-            (void)XSNPRINTF(buf, sizeof(buf), "%s/%s", tmpDir, "crl.revoked");
+            sprintf(buf, "%s/%s", tmpDir, "crl.revoked");
             if (STAGE_FILE("certs/crl/crl.revoked", buf) != 0) {
                 fprintf(stderr, "[%d] Failed to copy file to %s\n", i, buf);
                 goto cleanup;
             }
-            (void)XSNPRINTF(buf, sizeof(buf), "%s/%s", tmpDir, "crl.pem");
+            sprintf(buf, "%s/%s", tmpDir, "crl.pem");
             /* The monitor can be holding the file handle and this will cause
              * the remove call to fail. Let's give the monitor a some time to
              * finish up. */
@@ -396,9 +395,9 @@ static int test_crl_monitor(void)
 cleanup:
     if (ret != 0 && i >= 0)
         fprintf(stderr, "test_crl_monitor failed on iteration %d\n", i);
-    (void)XSNPRINTF(buf, sizeof(buf), "%s/%s", tmpDir, "crl.pem");
+    sprintf(buf, "%s/%s", tmpDir, "crl.pem");
     rem_file(buf);
-    (void)XSNPRINTF(buf, sizeof(buf), "%s/%s", tmpDir, "crl.revoked");
+    sprintf(buf, "%s/%s", tmpDir, "crl.revoked");
     rem_file(buf);
     (void)rem_dir(tmpDir);
     return ret;

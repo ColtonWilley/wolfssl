@@ -1992,7 +1992,7 @@ AC_ARG_ENABLE([ffmpeg],
     )
 
 
-# IP alternative name Support
+#IP alternative name Support
 AC_ARG_ENABLE([ip-alt-name],
     [AS_HELP_STRING([--enable-ip-alt-name],[Enable IP subject alternative name (default: disabled)])],
     [ ENABLE_IP_ALT_NAME=$enableval ],
@@ -2004,7 +2004,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_IP_ALT_NAME"
 fi
 
-# QT Support
+#Qt Support
 AC_ARG_ENABLE([qt],
     [AS_HELP_STRING([--enable-qt],[Enable qt (default: disabled)])],
     [ ENABLED_QT=$enableval ],
@@ -3077,13 +3077,9 @@ do
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_CARRYLESS"
     ;;
   zkn|zkned)
-    # AES encrypt/decrpyt, SHA-2
+    # AES encrypt/decrpyt
     ENABLED_RISCV_ASM=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_SCALAR_CRYPTO_ASM"
-    ;;
-  zv)
-    ENABLED_RISCV_ASM=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR"
     ;;
   zvkg)
     # VGMUL, VHHSH
@@ -3101,12 +3097,12 @@ do
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR_BASE_BIT_MANIPULATION"
     ;;
   zvkned)
-    # Vector AES, SHA-2
+    # Vector AES
     ENABLED_RISCV_ASM=yes
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_RISCV_VECTOR_CRYPTO_ASM"
     ;;
   *)
-    AC_MSG_ERROR([Invalid RISC-V option [yes,zbkb,zbb,zbc,zbkc,zkn,zkned,zv,zvkg,zvbc,zvbb,zvkb,zvkned]: $ENABLED_RISCV_ASM.])
+    AC_MSG_ERROR([Invalid RISC-V option [yes,zbkb,zbb,zbc,zbkc,zkn,zkned,zvkg,zvbc,zvbb,zvkb,zvkned]: $ENABLED_RISCV_ASM.])
     break
     ;;
   esac
@@ -3573,6 +3569,11 @@ AC_ARG_ENABLE([nullcipher],
     [ ENABLED_NULL_CIPHER=$enableval ],
     [ ENABLED_NULL_CIPHER=no ]
     )
+
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_NULL_CIPHER="yes"
+fi
 
 if test "$ENABLED_NULL_CIPHER" = "yes"
 then
@@ -4743,52 +4744,43 @@ fi
 
 
 # ASN
-
 # turn off asn, which means no certs, no rsa, no dsa, no ecc,
 # and no big int (unless dh is on)
-
-# turn off ASN if leanpsk on
-if test "$ENABLED_LEANPSK" = "yes"
-then
-    enable_asn=no
-fi
-
 AC_ARG_ENABLE([asn],
     [AS_HELP_STRING([--enable-asn],[Enable ASN (default: enabled)])],
     [ ENABLED_ASN=$enableval ],
     [ ENABLED_ASN=yes ]
     )
 
-for v in `echo $ENABLED_ASN | tr "," " "`
-do
-    case $v in
-    all)
-        # Enable all ASN features
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ALL"
-        ENABLED_ASN=yes
-        ;;
-    template | yes)
+if test "$ENABLED_ASN" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
+    enable_pwdbased=no
+else
+    if test "$ENABLED_ASN" = "template"; then
+        ENABLED_ASN="yes"
+    fi
+    if test "$ENABLED_ASN" = "yes"; then
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_TEMPLATE"
-        ENABLED_ASN=yes
-        ;;
-    original)
-        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASN_ORIGINAL"
-        ENABLED_ASN=yes
-        ;;
-    nocrypt)
-        AM_CFLAGS="$AM_CFLAGS -DNO_ASN_CRYPT"
-        enable_pwdbased=no
-        ;;
-    no)
-        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_ASN_CRYPT"
-        enable_pwdbased=no
+    else
+        if test "$ENABLED_ASN" != "original"; then
+            AC_MSG_ERROR([Invalid asn option. Valid are: template or original. Seen: $ENABLED_ASN.])
+        fi
+    fi
+
+    # turn off ASN if leanpsk on
+    if test "$ENABLED_LEANPSK" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_BIG_INT"
         ENABLED_ASN=no
-        ;;
-    *)
-        AC_MSG_ERROR([Invalid asn option. Valid are: all, template/yes, original, nocrypt or no. Seen: $ENABLED_ASN.])
-        break;;
-esac
-done
+    else
+        if test "$ENABLED_ASN" = "nocrypt"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DNO_ASN_CRYPT"
+            enable_pwdbased=no
+        fi
+    fi
+fi
 
 if test "$ENABLED_RSA" = "yes" && test "$ENABLED_RSAVFY" = "no" && \
    test "$ENABLED_ASN" = "no" && test "$ENABLED_LOWRESOURCE" = "no"

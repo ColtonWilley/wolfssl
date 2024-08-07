@@ -1418,10 +1418,10 @@ struct DNS_entry {
     int        type;   /* i.e. ASN_DNS_TYPE */
     int        len;    /* actual DNS len */
     char*      name;   /* actual DNS name */
-#ifdef WOLFSSL_IP_ALT_NAME
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_IP_ALT_NAME)
     char*      ipString; /* human readable form of IP address */
 #endif
-#ifdef WOLFSSL_RID_ALT_NAME
+#if defined(OPENSSL_ALL)
     char*      ridString; /* human readable form of registeredID */
 #endif
 
@@ -1660,7 +1660,8 @@ typedef struct TrustedPeerCert TrustedPeerCert;
 typedef struct SignatureCtx SignatureCtx;
 typedef struct CertSignCtx  CertSignCtx;
 
-#ifdef WC_ASN_UNKNOWN_EXT_CB
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
 typedef int (*wc_UnknownExtCallback)(const word16* oid, word32 oidSz, int crit,
                                      const unsigned char* der, word32 derSz);
 typedef int (*wc_UnknownExtCallbackEx)(const word16* oid, word32 oidSz,
@@ -1713,7 +1714,7 @@ struct DecodedCert {
     word32  extensionsIdx;           /* if want to go back and parse later */
     const byte* extAuthInfo;         /* Authority Information Access URI */
     int     extAuthInfoSz;           /* length of the URI                */
-#ifdef WOLFSSL_ASN_CA_ISSUER
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     const byte* extAuthInfoCaIssuer; /* Authority Info Access caIssuer URI */
     int     extAuthInfoCaIssuerSz;   /* length of the caIssuer URI         */
 #endif
@@ -1803,7 +1804,7 @@ struct DecodedCert {
     char*   subjectSN;
     int     subjectSNLen;
     char    subjectSNEnc;
-#ifdef WOLFSSL_CERT_NAME_ALL
+    #ifdef WOLFSSL_CERT_NAME_ALL
     char*   subjectN;
     int     subjectNLen;
     char    subjectNEnc;
@@ -1816,7 +1817,7 @@ struct DecodedCert {
     char*   subjectDNQ;
     int     subjectDNQLen;
     char    subjectDNQEnc;
-#endif /* WOLFSSL_CERT_NAME_ALL */
+    #endif /*WOLFSSL_CERT_NAME_ALL */
     char*   subjectC;
     int     subjectCLen;
     char    subjectCEnc;
@@ -1881,12 +1882,12 @@ struct DecodedCert {
     char*   issuerEmail;
     int     issuerEmailLen;
 #endif /* WOLFSSL_HAVE_ISSUER_NAMES */
-#endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
+#endif /* defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT) */
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     /* WOLFSSL_X509_NAME structures (used void* to avoid including ssl.h) */
     void* issuerName;
     void* subjectName;
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+#endif /* OPENSSL_EXTRA */
 #ifdef WOLFSSL_SEP
     int     deviceTypeSz;
     byte*   deviceType;
@@ -1961,7 +1962,7 @@ struct DecodedCert {
     byte extSubjAltNameSet : 1;
     byte inhibitAnyOidSet : 1;
     byte selfSigned : 1;           /* Indicates subject and issuer are same */
-#ifdef WOLFSSL_SEP
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
     byte extCertPolicySet : 1;
 #endif
     byte extCRLdistCrit : 1;
@@ -1987,7 +1988,7 @@ struct DecodedCert {
     byte extAltSigAlgSet : 1;
     byte extAltSigValSet : 1;
 #endif /* WOLFSSL_DUAL_ALG_CERTS */
-#ifdef WOLFSSL_SEP
+#if defined(WOLFSSL_SEP) || defined(WOLFSSL_QT)
     byte extCertPolicyCrit : 1;
 #endif
 #ifdef WOLFSSL_CERT_REQ
@@ -1996,7 +1997,8 @@ struct DecodedCert {
 #ifdef HAVE_RPK
     byte isRPK : 1;   /* indicate the cert is Raw-Public-Key cert in RFC7250 */
 #endif
-#ifdef WC_ASN_UNKNOWN_EXT_CB
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
     wc_UnknownExtCallback unknownExtCallback;
     wc_UnknownExtCallbackEx unknownExtCallbackEx;
     void *unknownExtCallbackExCtx;
@@ -2038,7 +2040,7 @@ struct Signer {
 #ifndef IGNORE_NAME_CONSTRAINTS
         Base_entry* permittedNames;
         Base_entry* excludedNames;
-#endif /* !IGNORE_NAME_CONSTRAINTS */
+#endif /* IGNORE_NAME_CONSTRAINTS */
     byte    subjectNameHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
     #if defined(HAVE_OCSP) || defined(HAVE_CRL)
@@ -2139,16 +2141,15 @@ typedef enum MimeStatus
 } MimeStatus;
 #endif /* HAVE_SMIME */
 
+
 WOLFSSL_LOCAL int HashIdAlg(word32 oidSum);
 WOLFSSL_LOCAL int CalcHashId(const byte* data, word32 len, byte* hash);
 WOLFSSL_LOCAL int CalcHashId_ex(const byte* data, word32 len, byte* hash,
     int hashAlg);
 WOLFSSL_LOCAL int GetName(DecodedCert* cert, int nameType, int maxIdx);
 
-#ifdef ASN_BER_TO_DER
-WOLFSSL_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
+WOLFSSL_ASN_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
                                 word32* derSz);
-#endif
 WOLFSSL_LOCAL int StreamOctetString(const byte* inBuf, word32 inBufSz,
     byte* out, word32* outSz, word32* idx);
 
@@ -2166,10 +2167,11 @@ WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert* cert);
 WOLFSSL_ASN_API int  ParseCert(DecodedCert* cert, int type, int verify,
                                void* cm);
 
-#ifdef WC_ASN_UNKNOWN_EXT_CB
-WOLFSSL_API int wc_SetUnknownExtCallback(DecodedCert* cert,
+#if defined(WOLFSSL_CUSTOM_OID) && defined(WOLFSSL_ASN_TEMPLATE) \
+    && defined(HAVE_OID_DECODING)
+WOLFSSL_ASN_API int wc_SetUnknownExtCallback(DecodedCert* cert,
                                              wc_UnknownExtCallback cb);
-WOLFSSL_API int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
+WOLFSSL_ASN_API int wc_SetUnknownExtCallbackEx(DecodedCert* cert,
                                                wc_UnknownExtCallbackEx cb,
                                                void *ctx);
 #endif
@@ -2261,7 +2263,8 @@ WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
         word32* oidSz, int* algoID, void* heap);
 
 typedef struct tm wolfssl_tm;
-#ifdef WOLFSSL_ASN_TIME_STRING
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
 #endif
 #if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
@@ -2428,12 +2431,13 @@ WOLFSSL_LOCAL int AllocCopyDer(DerBuffer** der, const unsigned char* buff,
     word32 length, int type, void* heap);
 WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
 
-#ifdef WOLFSSL_ASN_PARSE_KEYUSAGE
+#if (defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)) || \
+    (defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA))
 WOLFSSL_LOCAL int ParseKeyUsageStr(const char* value, word16* keyUsage,
         void* heap);
 WOLFSSL_LOCAL int ParseExtKeyUsageStr(const char* value, byte* extKeyUsage,
         void* heap);
-#endif
+#endif /* (CERT_GEN && CERT_EXT) || (OPENSSL_ALL || OPENSSL_EXTRA) */
 
 #endif /* !NO_CERTS */
 
@@ -2525,7 +2529,8 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
-#ifdef WOLFSSL_OCSP_PARSE_STATUS
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(HAVE_LIGHTY)
     WOLFSSL_ASN1_TIME thisDateParsed;
     WOLFSSL_ASN1_TIME nextDateParsed;
     byte* thisDateAsn;
@@ -2610,6 +2615,10 @@ struct OcspRequest {
     int    serialSz;
 #ifdef OPENSSL_EXTRA
     WOLFSSL_ASN1_INTEGER* serialInt;
+#endif
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_APACHE_HTTPD) || \
+    defined(HAVE_LIGHTY)
     void* cid; /* WOLFSSL_OCSP_CERTID kept to free */
 #endif
     byte*  url;      /* copy of the extAuthInfo in source cert */
@@ -2760,9 +2769,7 @@ enum PBESTypes {
 
     PBES2              = 13,       /* algo ID */
     PBES1_MD5_DES      = 3,
-    PBES1_SHA1_DES     = 10,
-
-    PBE_NONE           = 999
+    PBES1_SHA1_DES     = 10
 };
 
 enum PKCSTypes {

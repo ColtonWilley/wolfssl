@@ -399,10 +399,6 @@ function(generate_lib_src_list LIB_SOURCES)
 
               if(BUILD_SHA3)
                    list(APPEND LIB_SOURCES wolfcrypt/src/sha3.c)
-
-                   if(BUILD_INTELASM)
-                        list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
-                   endif()
               endif()
 
               if(BUILD_DH)
@@ -586,10 +582,6 @@ function(generate_lib_src_list LIB_SOURCES)
 
          if(NOT BUILD_FIPS_V2 AND BUILD_SHA3)
               list(APPEND LIB_SOURCES wolfcrypt/src/sha3.c)
-
-              if(BUILD_INTELASM)
-                   list(APPEND LIB_SOURCES wolfcrypt/src/sha3_asm.S)
-              endif()
          endif()
     endif()
 

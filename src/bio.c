@@ -3345,22 +3345,21 @@ int wolfSSL_BIO_dump(WOLFSSL_BIO *bio, const char *buf, int length)
             return wolfSSL_BIO_write(bio, "\tNULL", 5);
         }
 
-        (void)XSNPRINTF(line, sizeof(line), "%04x - ", lineOffset);
+        XSPRINTF(line, "%04x - ", lineOffset);
         o = 7;
         for (i = 0; i < BIO_DUMP_LINE_LEN; i++) {
             if (i < length)
-                (void)XSNPRINTF(line + o, (int)sizeof(line) - o,
-                    "%02x ", (unsigned char)buf[i]);
+                XSPRINTF(line + o,"%02x ", (unsigned char)buf[i]);
             else
-                (void)XSNPRINTF(line + o, (int)sizeof(line) - o, "   ");
+                XSPRINTF(line + o, "   ");
             if (i == 7)
-                (void)XSNPRINTF(line + o + 2, (int)sizeof(line) - (o + 2), "-");
+                XSPRINTF(line + o + 2, "-");
             o += 3;
         }
-        (void)XSNPRINTF(line + o, (int)sizeof(line) - o, "  ");
+        XSPRINTF(line + o, "  ");
         o += 2;
         for (i = 0; (i < BIO_DUMP_LINE_LEN) && (i < length); i++) {
-            (void)XSNPRINTF(line + o, (int)sizeof(line) - o, "%c",
+            XSPRINTF(line + o, "%c",
                      ((31 < buf[i]) && (buf[i] < 127)) ? buf[i] : '.');
             o++;
         }

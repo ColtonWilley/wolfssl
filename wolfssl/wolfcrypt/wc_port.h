@@ -59,9 +59,7 @@
 #endif /* WOLFSSL_LINUXKM */
 
 /* THREADING/MUTEX SECTION */
-#if defined(SINGLE_THREADED) && defined(NO_FILESYSTEM)
-    /* No system headers required for build. */
-#elif defined(USE_WINDOWS_API)
+#ifdef USE_WINDOWS_API
     #if defined(WOLFSSL_PTHREADS)
         #include <pthread.h>
     #endif

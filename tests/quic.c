@@ -848,7 +848,7 @@ static void check_crypto_records(QuicTestContext *from, OutputBuffer *out, int i
                 rec_name = "Finished";
                 break;
             default:
-                (void)XSNPRINTF(lbuffer, sizeof(lbuffer), "%d", rec_type);
+                sprintf(lbuffer, "%d", rec_type);
                 rec_name = lbuffer;
                 break;
         }
