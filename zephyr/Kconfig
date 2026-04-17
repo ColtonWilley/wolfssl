@@ -80,6 +80,18 @@ config WOLFSSL_ALPN
   help
     Enable ALPN support
 
+config WOLFSSL_TLS_RENEGOTIATION
+  bool "wolfSSL TLS 1.2 secure renegotiation support"
+  depends on WOLFSSL_BUILTIN
+  help
+    Enable TLS 1.2 secure renegotiation (RFC 5746). Defines
+    HAVE_SECURE_RENEGOTIATION in the wolfSSL build and causes
+    the Zephyr TLS socket layer to call wolfSSL_UseSecureRenegotiation
+    on each connection, mirroring the mbedTLS MBEDTLS_SSL_RENEGOTIATION
+    behaviour in sockets_tls.c. Requires the builtin wolfSSL build
+    because WOLFSSL_USER_SETTINGS is only injected for WOLFSSL_BUILTIN;
+    an external library must be built with matching flags.
+
 config WOLFSSL_PSK
   bool "wolfSSL PSK support"
   help

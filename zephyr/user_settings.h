@@ -129,8 +129,23 @@ extern "C" {
     #ifdef WOLFSSL_TLS13
         #define HAVE_SESSION_TICKET /* session tickets required for resumption in TLS v1.3 */
     #endif
+    /* Required for wolfSSL_get1_session / wolfSSL_i2d_SSL_SESSION /
+     * wolfSSL_d2i_SSL_SESSION so the Zephyr TLS layer can marshal
+     * client sessions per-peer (parity with mbedTLS
+     * tls_session_save/load). Note: this header is only applied when
+     * CONFIG_WOLFSSL_BUILTIN is selected (WOLFSSL_USER_SETTINGS is
+     * injected by zephyr/CMakeLists.txt only on the builtin path). An
+     * external wolfSSL library must be built with HAVE_EXT_CACHE
+     * independently for the session marshalling path to work. */
+    #define HAVE_EXT_CACHE
 #else
     #define NO_SESSION_CACHE /* disable session resumption */
+#endif
+
+/* Secure Renegotiation (TLS 1.2). Mirrors the mbedTLS
+ * MBEDTLS_SSL_RENEGOTIATION gating in sockets_tls.c. */
+#if defined(CONFIG_WOLFSSL_TLS_RENEGOTIATION)
+    #define HAVE_SECURE_RENEGOTIATION
 #endif
 
 /* DTLS */
@@ -158,6 +173,20 @@ extern "C" {
 
 #if defined(CONFIG_NET_SOCKETS_SOCKOPT_TLS)
     #define WOLFSSL_SET_CIPHER_BYTES
+    #define KEEP_PEER_CERT
+#endif
+
+#if defined(CONFIG_NET_SOCKETS_TLS_CERT_VERIFY_CALLBACK) || \
+    defined(CONFIG_WOLFSSL_VERIFY_CALLBACK)
+    #define WOLFSSL_ALWAYS_VERIFY_CB
+#endif
+
+#if defined(CONFIG_WOLFSSL_VERIFY_CB_ALL_CERTS)
+    #define WOLFSSL_VERIFY_CB_ALL_CERTS
+#endif
+
+#if defined(CONFIG_WOLFSSL_X509_VERIFY_EXTENDED)
+    #define OPENSSL_EXTRA_X509_SMALL
 #endif
 
 /* wolfTPM Zephyr */
@@ -182,6 +211,8 @@ extern "C" {
     #define HAVE_ECC
     #define ECC_USER_CURVES      /* Enable only ECC curves specific */
     #undef  NO_ECC256            /* Enable SECP256R1 only (on by default) */
+    #define NO_ECC384
+    #define NO_ECC521
     #define ECC_TIMING_RESISTANT /* Enable Timing Resistance */
 
     //#define ECC_SHAMIR         /* Optional ECC calculation speed improvement if not using SP implementation */
